@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasta Fırlatıcısı</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            color: white;
+            padding: 0;
+        }
+        
+        #gameContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .ui-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            border: 2px solid #ff6b8b;
+            box-shadow: 0 0 15px rgba(255, 107, 139, 0.6);
+            font-size: clamp(16px, 4vw, 24px);
+        }
+        
+        #healthPanel {
+            top: 20px;
+            right: 20px;
+            color: #ff6b8b;
+        }
+        
+        #scorePanel {
+            top: 20px;
+            left: 20px;
+            color: #ffd700;
+            font-weight: bold;
+        }
+        
+        #levelPanel {
+            top: 80px;
+            left: 20px;
+            background: rgba(255, 107, 139, 0.9);
+            color: #000;
+            font-weight: bold;
+            font-size: clamp(12px, 3vw, 18px);
+        }
+        
+        #ammoPanel {
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.9);
+            color: #000;
+            font-weight: bold;
+            font-size: clamp(12px, 3vw, 18px);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 clamp(20px, 5vw, 50px);
+            pointer-events: auto;
+        }
+        
+        .control-btn {
+            width: clamp(60px, 15vw, 100px);
+            height: clamp(60px, 15vw, 100px);
+            background: rgba(255, 107, 139, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(24px, 6vw, 40px);
+            color: #ff6b8b;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #ff6b8b;
+            box-shadow: 0 0 20px rgba(255, 107, 139, 0.6);
+        }
+        
+        .control-btn:active {
+            background: rgba(255, 107, 139, 0.5);
+            transform: scale(0.95);
+        }
+        
+        #fireBtn {
+            width: clamp(70px, 18vw, 110px);
+            height: clamp(70px, 18vw, 110px);
+            background: rgba(255, 215, 0, 0.3);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+            font-size: clamp(20px, 5vw, 32px);
+        }
+        
+        #fireBtn:active {
+            background: rgba(255, 215, 0, 0.5);
+        }
+        
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            text-align: center;
+            padding: clamp(15px, 4vw, 25px);
+        }
+        
+        #gameOverScreen {
+            display: none;
+        }
+        
+        h1 {
+            color: #ff6b8b;
+            font-size: clamp(32px, 10vw, 60px);
+            margin-bottom: clamp(30px, 8vw, 60px);
+            text-shadow: 0 0 20px #ff6b8b;
+        }
+        
+        .start-btn {
+            background: linear-gradient(45deg, #ff6b8b, #ff8e53);
+            border: none;
+            border-radius: 20px;
+            padding: clamp(20px, 6vw, 35px) clamp(40px, 10vw, 80px);
+            font-size: clamp(24px, 6vw, 40px);
+            font-weight: bold;
+            cursor: pointer;
+            color: #000;
+            box-shadow: 0 0 30px rgba(255, 107, 139, 0.8);
+            transition: all 0.3s;
+            margin-top: 50px;
+        }
+        
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .screen-btn {
+            background: linear-gradient(45deg, #ff6b8b, #ff8e53);
+            border: none;
+            border-radius: 12px;
+            padding: clamp(12px, 3vw, 18px) clamp(25px, 6vw, 35px);
+            font-size: clamp(16px, 4vw, 22px);
+            font-weight: bold;
+            cursor: pointer;
+            margin: clamp(8px, 2vw, 12px) 0;
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 107, 139, 0.8);
+            transition: all 0.3s;
+        }
+        
+        .screen-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .screen-text {
+            margin: clamp(8px, 2vw, 12px) 0;
+            color: #cccccc;
+            max-width: 90%;
+            line-height: 1.6;
+            font-size: clamp(14px, 3.5vw, 18px);
+        }
+
+        .game-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-subtitle {
+            color: #ff6b8b;
+            font-size: clamp(16px, 4vw, 24px);
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #ff6b8b;
+        }
+
+        .character-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 107, 139, 0.2);
+            border-radius: 10px;
+            border: 1px solid #ff6b8b;
+        }
+
+        .controls-info {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-key {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ff6b8b;
+            font-size: 14px;
+        }
+
+        /* Tam ekran butonu */
+        #fullscreenBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 107, 139, 0.3);
+            border: 2px solid #ff6b8b;
+            color: #ff6b8b;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 25;
+            font-size: clamp(12px, 3vw, 16px);
+            pointer-events: auto;
+        }
+
+        #fullscreenBtn:hover {
+            background: rgba(255, 107, 139, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <button id="fullscreenBtn">⛶ Tam Ekran</button>
+        
+        <div id="uiOverlay">
+            <div id="scorePanel" class="ui-panel">
+                PASTA: <span id="score">0</span>
+            </div>
+            <div id="healthPanel" class="ui-panel">
+                CAN: <span id="health">3</span>
+            </div>
+            <div id="levelPanel" class="ui-panel">
+                SEVİYE: <span id="level">1</span>
+            </div>
+            <div id="ammoPanel" class="ui-panel">
+                PASTA: <span id="ammo">10</span>
+            </div>
+            
+            <div id="controls">
+                <div id="leftBtn" class="control-btn">←</div>
+                <div id="fireBtn" class="control-btn">🎂</div>
+                <div id="rightBtn" class="control-btn">→</div>
+            </div>
+        </div>
+        
+        <div id="startScreen">
+            <div class="game-title">
+                <h1>PASTA FIRLATICISI</h1>
+                <div class="game-subtitle">Tatlı Savaş Başlıyor!</div>
+            </div>
+            
+            <div class="character-info">
+                <p class="screen-text">🎯 <strong>PASTA ŞEFİ</strong></p>
+                <p class="screen-text">Yukarıdan gelen sebzelere pasta fırlat!</p>
+                <p class="screen-text">Onları yok et ve tatlı zafer kazan!</p>
+            </div>
+
+            <div class="controls-info">
+                <div class="control-key">← SOLA GİT</div>
+                <div class="control-key">→ SAĞA GİT</div>
+                <div class="control-key">🎂 PASTA FIRLAT</div>
+            </div>
+
+            <p class="screen-text">• 3 can ile başla</p>
+            <p class="screen-text">• Pastalar sınırlı, akıllıca kullan</p>
+            <p class="screen-text">• Sebzeleri vur ve puan kazan!</p>
+            
+            <button id="startBtn" class="start-btn">OYUNA BAŞLA</button>
+        </div>
+        
+        <div id="gameOverScreen">
+            <h1>TATLI YENİLGİ!</h1>
+            <p class="screen-text">Pasta şefi sebzelere yenildi!</p>
+            <p class="screen-text">Toplam Puan: <span id="finalScore">0</span></p>
+            <p class="screen-text">Vurulan Sebze: <span id="vegetablesHit">0</span></p>
+            <p class="screen-text">Ulaşılan Seviye: <span id="finalLevel">1</span></p>
+            <button id="restartBtn" class="screen-btn">TEKRAR DENE</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas boyutlarını ayarla
+        const gameContainer = document.getElementById('gameContainer');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // Oyun durumu
+        let gameState = {
+            score: 0,
+            health: 3,
+            ammo: 10,
+            gameRunning: false,
+            playerX: 0,
+            playerY: 0,
+            playerWidth: 0,
+            playerHeight: 0,
+            playerSpeed: 0,
+            vegetables: [],
+            cakes: [],
+            vegetableSpeed: 0,
+            vegetableInterval: 0,
+            lastVegetableTime: 0,
+            vegetablesHit: 0,
+            level: 1,
+            stars: [],
+            backgroundOffset: 0,
+            lastShotTime: 0,
+            shotCooldown: 500
+        };
+
+        // Seviye ayarları
+        const levelSettings = {
+            1: { vegetableSpeed: 2, vegetableInterval: 1500, playerSpeed: 8, vegetablesPerLevel: 5, startingAmmo: 10 },
+            2: { vegetableSpeed: 3, vegetableInterval: 1300, playerSpeed: 9, vegetablesPerLevel: 8, startingAmmo: 12 },
+            3: { vegetableSpeed: 4, vegetableInterval: 1100, playerSpeed: 10, vegetablesPerLevel: 12, startingAmmo: 15 },
+            4: { vegetableSpeed: 5, vegetableInterval: 900, playerSpeed: 11, vegetablesPerLevel: 16, startingAmmo: 18 },
+            5: { vegetableSpeed: 6, vegetableInterval: 700, playerSpeed: 12, vegetablesPerLevel: 20, startingAmmo: 20 }
+        };
+
+        // Sebze tipleri
+        const VEGETABLE_TYPES = {
+            BROCCOLI: 'broccoli',
+            CARROT: 'carrot',
+            TOMATO: 'tomato',
+            EGGPLANT: 'eggplant'
+        };
+
+        // Sebze renkleri
+        const VEGETABLE_COLORS = {
+            [VEGETABLE_TYPES.BROCCOLI]: '#00aa00',
+            [VEGETABLE_TYPES.CARROT]: '#ff8c00',
+            [VEGETABLE_TYPES.TOMATO]: '#ff4444',
+            [VEGETABLE_TYPES.EGGPLANT]: '#8b00ff'
+        };
+
+        // Yıldızları oluştur
+        function createStars() {
+            gameState.stars = [];
+            for (let i = 0; i < 80; i++) {
+                gameState.stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.5 + 0.5,
+                    speed: Math.random() * 0.2 + 0.1,
+                    brightness: Math.random() * 0.5 + 0.5
+                });
+            }
+        }
+
+        // Boyutları hesapla
+        function calculateSizes() {
+            const baseSize = Math.min(canvas.width, canvas.height);
+            gameState.playerWidth = baseSize * 0.12;
+            gameState.playerHeight = baseSize * 0.15;
+            
+            // Seviyeye göre hızları ayarla
+            const settings = levelSettings[gameState.level];
+            gameState.playerSpeed = settings.playerSpeed;
+            gameState.vegetableSpeed = settings.vegetableSpeed;
+            gameState.vegetableInterval = settings.vegetableInterval;
+            
+            // Oyuncuyu ekranın alt kısmına yerleştir
+            gameState.playerX = canvas.width / 2 - gameState.playerWidth / 2;
+            gameState.playerY = canvas.height - gameState.playerHeight - 30;
+        }
+
+        // Ana karakter (Pasta Şefi) çizimi
+        function drawPlayer() {
+            const x = gameState.playerX;
+            const y = gameState.playerY;
+            const width = gameState.playerWidth;
+            const height = gameState.playerHeight;
+            
+            // Şef gövdesi (önlük)
+            ctx.fillStyle = '#ff6b8b';
+            ctx.fillRect(x, y, width, height);
+            
+            // Şef başı
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(x + width/2, y - 10, width/3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Şef şapkası
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x + width/2, y - 25, width/2.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Gözler
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + width/2 - width/8, y - 8, width/20, 0, Math.PI * 2);
+            ctx.arc(x + width/2 + width/8, y - 8, width/20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Gülümseme
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x + width/2, y + 2, width/8, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+            
+            // Pasta fırlatıcı
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(x + width/2 - 4, y - 15, 8, 20);
+            
+            // Eller
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(x, y + height/3, width/4, height/3);
+            ctx.fillRect(x + width * 3/4, y + height/3, width/4, height/3);
+        }
+
+        // Pasta sınıfı
+        class Cake {
+            constructor() {
+                this.radius = 15;
+                this.x = gameState.playerX + gameState.playerWidth/2;
+                this.y = gameState.playerY - this.radius;
+                this.speed = 10;
+                this.color = this.getRandomCakeColor();
+            }
+
+            getRandomCakeColor() {
+                const colors = ['#ff6b8b', '#ffd700', '#ff8e53', '#ff4444', '#8b00ff'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            update() {
+                this.y -= this.speed;
+                
+                // Pasta ekran dışına çıktı mı?
+                if (this.y < -this.radius) {
+                    return true;
+                }
+                
+                // Sebzelerle çarpışma kontrolü
+                for (let i = gameState.vegetables.length - 1; i >= 0; i--) {
+                    const vegetable = gameState.vegetables[i];
+                    if (!vegetable.hit) {
+                        const dx = this.x - vegetable.x;
+                        const dy = this.y - vegetable.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < this.radius + vegetable.radius) {
+                            // Sebze vuruldu
+                            vegetable.hit = true;
+                            gameState.vegetablesHit++;
+                            gameState.score += 10;
+                            document.getElementById('score').textContent = gameState.score;
+                            createSplash(vegetable.x, vegetable.y);
+                            
+                            // Seviye kontrolü
+                            checkLevelUp();
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            }
+
+            draw() {
+                // Pasta gövdesi
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Pasta süslemesi
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Krem şekeri
+                ctx.fillStyle = '#ff6b8b';
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI * 2 / 6) * i;
+                    const decorX = this.x + Math.cos(angle) * this.radius * 0.8;
+                    const decorY = this.y + Math.sin(angle) * this.radius * 0.8;
+                    ctx.beginPath();
+                    ctx.arc(decorX, decorY, this.radius * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Sebze sınıfı
+        class Vegetable {
+            constructor() {
+                this.type = this.getRandomVegetableType();
+                this.radius = Math.random() * 15 + 20;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = -this.radius;
+                this.speed = gameState.vegetableSpeed + Math.random() * 1;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+                this.hit = false;
+                this.color = VEGETABLE_COLORS[this.type];
+            }
+
+            getRandomVegetableType() {
+                const types = Object.values(VEGETABLE_TYPES);
+                return types[Math.floor(Math.random() * types.length)];
+            }
+
+            update() {
+                // Aşağıya doğru hareket et
+                this.y += this.speed;
+                this.rotation += this.rotationSpeed;
+                
+                // Çarpışma kontrolü
+                if (!this.hit) {
+                    const playerCenterX = gameState.playerX + gameState.playerWidth/2;
+                    const playerCenterY = gameState.playerY + gameState.playerHeight/2;
+                    
+                    const dx = this.x - playerCenterX;
+                    const dy = this.y - playerCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < this.radius + Math.min(gameState.playerWidth, gameState.playerHeight)/2) {
+                        gameState.health--;
+                        document.getElementById('health').textContent = gameState.health;
+                        this.hit = true;
+                        
+                        if (gameState.health <= 0) {
+                            endGame();
+                        }
+                        return false;
+                    }
+                }
+                
+                // Sebze geçildi mi?
+                if (!this.hit && this.y > canvas.height) {
+                    this.hit = true;
+                    return false;
+                }
+                
+                return this.y > canvas.height;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                ctx.fillStyle = this.color;
+                
+                switch(this.type) {
+                    case VEGETABLE_TYPES.BROCCOLI:
+                        // Brokoli çiz
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Brokoli detayları
+                        ctx.fillStyle = '#008800';
+                        for (let i = 0; i < 8; i++) {
+                            const angle = (Math.PI * 2 / 8) * i;
+                            const detailX = Math.cos(angle) * this.radius * 0.6;
+                            const detailY = Math.sin(angle) * this.radius * 0.6;
+                            ctx.beginPath();
+                            ctx.arc(detailX, detailY, this.radius * 0.3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+                        
+                    case VEGETABLE_TYPES.CARROT:
+                        // Havuç çiz
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, this.radius * 0.8, this.radius, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Havuç yeşilliği
+                        ctx.fillStyle = '#00aa00';
+                        ctx.beginPath();
+                        ctx.moveTo(-this.radius * 0.5, -this.radius);
+                        ctx.lineTo(0, -this.radius * 1.5);
+                        ctx.lineTo(this.radius * 0.5, -this.radius);
+                        ctx.fill();
+                        break;
+                        
+                    case VEGETABLE_TYPES.TOMATO:
+                        // Domates çiz
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Domates sapı
+                        ctx.fillStyle = '#00aa00';
+                        ctx.beginPath();
+                        ctx.arc(0, -this.radius * 0.8, this.radius * 0.3, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case VEGETABLE_TYPES.EGGPLANT:
+                        // Patlıcan çiz
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, this.radius * 0.6, this.radius, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Patlıcan sapı
+                        ctx.fillStyle = '#00aa00';
+                        ctx.beginPath();
+                        ctx.arc(0, -this.radius * 0.8, this.radius * 0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        // Patlama efekti
+        function createSplash(x, y) {
+            // Renkli pasta parçacıkları
+            for (let i = 0; i < 12; i++) {
+                setTimeout(() => {
+                    const colors = ['#ff6b8b', '#ffd700', '#ff8e53', '#ffffff'];
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(x + (Math.random() - 0.5) * 50, y + (Math.random() - 0.5) * 50, 5 + i, 0, Math.PI * 2);
+                    ctx.fill();
+                }, i * 30);
+            }
+        }
+
+        // Pasta fırlat
+        function fireCake() {
+            const currentTime = Date.now();
+            if (currentTime - gameState.lastShotTime > gameState.shotCooldown && gameState.ammo > 0) {
+                gameState.cakes.push(new Cake());
+                gameState.ammo--;
+                document.getElementById('ammo').textContent = gameState.ammo;
+                gameState.lastShotTime = currentTime;
+                
+                // Pasta bitti mi?
+                if (gameState.ammo <= 0) {
+                    // Otomatik yeniden yükleme
+                    setTimeout(() => {
+                        const settings = levelSettings[gameState.level];
+                        gameState.ammo = settings.startingAmmo;
+                        document.getElementById('ammo').textContent = gameState.ammo;
+                    }, 2000);
+                }
+            }
+        }
+
+        // Seviye atlama kontrolü
+        function checkLevelUp() {
+            const currentLevelSettings = levelSettings[gameState.level];
+            if (gameState.vegetablesHit >= currentLevelSettings.vegetablesPerLevel) {
+                gameState.level++;
+                document.getElementById('level').textContent = gameState.level;
+                
+                // Yeni seviye ayarlarını uygula
+                const newSettings = levelSettings[gameState.level];
+                gameState.ammo = newSettings.startingAmmo;
+                document.getElementById('ammo').textContent = gameState.ammo;
+                
+                calculateSizes();
+                
+                // Seviye atlama efekti
+                showLevelUp();
+            }
+        }
+
+        // Seviye atlama efekti
+        function showLevelUp() {
+            // Pastel renkli seviye atlama efekti
+            ctx.fillStyle = 'rgba(255, 107, 139, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            setTimeout(() => {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }, 100);
+            
+            setTimeout(() => {
+                ctx.fillStyle = 'rgba(255, 142, 83, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }, 200);
+        }
+
+        // Yıldızları çiz ve güncelle
+        function updateAndDrawStars() {
+            gameState.backgroundOffset += 0.1;
+            
+            // Siyah arka plan
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Yıldızları çiz
+            gameState.stars.forEach(star => {
+                const brightness = star.brightness + Math.sin(Date.now() * 0.001 + star.x) * 0.3;
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                ctx.beginPath();
+                ctx.arc(star.x, (star.y + gameState.backgroundOffset * star.speed) % canvas.height, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Oyun döngüsü
+        function gameLoop() {
+            if (!gameState.gameRunning) return;
+            
+            // Arka planı çiz
+            updateAndDrawStars();
+            
+            // Zemin çizgisi
+            ctx.strokeStyle = '#ff6b8b';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 20);
+            ctx.lineTo(canvas.width, canvas.height - 20);
+            ctx.stroke();
+            
+            // Ana karakteri çiz
+            drawPlayer();
+            
+            // Pastaları güncelle ve çiz
+            gameState.cakes = gameState.cakes.filter(cake => {
+                const shouldRemove = cake.update();
+                if (!shouldRemove) {
+                    cake.draw();
+                }
+                return shouldRemove;
+            });
+            
+            // Sebzeleri güncelle ve çiz
+            const currentTime = Date.now();
+            if (currentTime - gameState.lastVegetableTime > gameState.vegetableInterval) {
+                gameState.vegetables.push(new Vegetable());
+                gameState.lastVegetableTime = currentTime;
+            }
+            
+            // Sebzeleri güncelle
+            gameState.vegetables = gameState.vegetables.filter(vegetable => {
+                const shouldRemove = vegetable.update();
+                if (!shouldRemove) {
+                    vegetable.draw();
+                }
+                return shouldRemove;
+            });
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Kontroller
+        document.getElementById('leftBtn').addEventListener('touchstart', moveLeft);
+        document.getElementById('leftBtn').addEventListener('mousedown', moveLeft);
+        document.getElementById('rightBtn').addEventListener('touchstart', moveRight);
+        document.getElementById('rightBtn').addEventListener('mousedown', moveRight);
+        document.getElementById('fireBtn').addEventListener('touchstart', fireCake);
+        document.getElementById('fireBtn').addEventListener('mousedown', fireCake);
+        
+        document.addEventListener('touchend', stopMove);
+        document.addEventListener('mouseup', stopMove);
+        
+        let moveDirection = 0;
+        
+        function moveLeft() {
+            moveDirection = -1;
+        }
+        
+        function moveRight() {
+            moveDirection = 1;
+        }
+        
+        function stopMove() {
+            moveDirection = 0;
+        }
+        
+        function updatePlayerPosition() {
+            if (!gameState.gameRunning) return;
+            
+            gameState.playerX += moveDirection * gameState.playerSpeed;
+            
+            // Sınır kontrolü
+            if (gameState.playerX < 0) {
+                gameState.playerX = 0;
+            }
+            if (gameState.playerX > canvas.width - gameState.playerWidth) {
+                gameState.playerX = canvas.width - gameState.playerWidth;
+            }
+            
+            setTimeout(updatePlayerPosition, 16);
+        }
+
+        // Tam ekran işlevi
+        document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                gameContainer.requestFullscreen().catch(err => {
+                    console.log(`Fullscreen error: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Oyun yönetimi
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', function() {
+            document.getElementById('gameOverScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        });
+        
+        function startGame() {
+            // Başlangıç ekranını hemen kapat
+            document.getElementById('startScreen').style.display = 'none';
+            
+            // Oyun durumunu sıfırla
+            const settings = levelSettings[1];
+            gameState = {
+                score: 0,
+                health: 3,
+                ammo: settings.startingAmmo,
+                gameRunning: true,
+                playerX: 0,
+                playerY: 0,
+                playerWidth: 0,
+                playerHeight: 0,
+                playerSpeed: 0,
+                vegetables: [],
+                cakes: [],
+                vegetableSpeed: 0,
+                vegetableInterval: 0,
+                lastVegetableTime: Date.now(),
+                vegetablesHit: 0,
+                level: 1,
+                stars: [],
+                backgroundOffset: 0,
+                lastShotTime: 0,
+                shotCooldown: 500
+            };
+            
+            // Yıldızları oluştur
+            createStars();
+            
+            // Boyutları hesapla
+            calculateSizes();
+            
+            // UI'ı güncelle
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('health').textContent = gameState.health;
+            document.getElementById('ammo').textContent = gameState.ammo;
+            document.getElementById('level').textContent = gameState.level;
+            
+            // Oyunu başlat
+            gameLoop();
+            updatePlayerPosition();
+        }
+        
+        function endGame() {
+            gameState.gameRunning = false;
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('vegetablesHit').textContent = gameState.vegetablesHit;
+            document.getElementById('finalLevel').textContent = gameState.level;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+
+        // Pencere boyutu değiştiğinde
+        window.addEventListener('resize', function() {
+            resizeCanvas();
+            createStars();
+            if (gameState.gameRunning) {
+                calculateSizes();
+            }
+        });
+
+        // Sayfa yüklendiğinde canvas'ı hazırla
+        window.addEventListener('load', function() {
+            resizeCanvas();
+            createStars();
+            
+            // UI'ı başlangıç değerlerine ayarla
+            document.getElementById('score').textContent = '0';
+            document.getElementById('health').textContent = '3';
+            document.getElementById('ammo').textContent = '10';
+            document.getElementById('level').textContent = '1';
+        });
+    </script>
+</body>
+</html>
